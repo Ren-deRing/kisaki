@@ -1,6 +1,10 @@
 #include "io.h"
 #include "multiboot2.h"
 
+#define STB_SPRINTF_IMPLEMENTATION
+#include "../../include/deps/stb_sprintf.h" // i'll fix it
+
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -17,14 +21,24 @@ void serial_putc(char c) {
     outb(0x3F8, c);
 }
 
-void print(const char* fmt) {
-    for (int i = 0; i < strlen(fmt); i++) {
-        serial_putc(fmt[i]);
-    }
+char* stb_callback(char const * buf, void * user, int len) {
+    for (int i = 0; i < len; i++) serial_putc(buf[i]);
+    return (char *)buf;
+}
+
+void kprintf(const char* fmt, ...) {
+    char buf[STB_SPRINTF_MIN];
+
+    va_list args;
+    va_start(args, fmt);
+
+    stbsp_vsprintfcb(stb_callback, NULL, buf, fmt, args);
+
+    va_end(args);
 }
 
 void boot_main(uint32_t magic, uint32_t *info) {
-    if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {};
+    if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) for(;;);
     outb(COM1 + 1, 0x00); // no interrupt mode (polled mode)
     outb(COM1 + 3, 0x80); // DLAB on (speed setting mode)
     outb(COM1 + 0, 0x01); // baud rate 115200 (Low)
@@ -33,7 +47,8 @@ void boot_main(uint32_t magic, uint32_t *info) {
     outb(COM1 + 2, 0xC7); // FIFO enable, clear FIFO, 14-byte threshold
     outb(COM1 + 4, 0x0B); // DTR, RTS, OUT2 set
 
-    print("hello!\n");
+    kprintf("hello from long mode C!\n");
+    kprintf("and stb_sprintf! maigc: %lx\n", magic);
 
     for (;;);
 }
