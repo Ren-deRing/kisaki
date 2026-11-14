@@ -20,7 +20,26 @@ multiboot_header_end:
 .text
 
 .globl _start
-_start:        
+_start:
+    # Stack pointer
+    movl $(stack + 8196), %esp
+
+    # Reset EFLAGS
+    pushl $0
+    popf
+
+    pushl %ebx # Push the boot *infomation
+    pushl %eax # Push the magic
+
+    .extern boot_main
+    call boot_main # Call C main
+
+    cli
+
 loop:
     hlt
     jmp loop
+
+.bss
+.zero 8196
+stack:
