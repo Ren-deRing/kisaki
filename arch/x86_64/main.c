@@ -16,6 +16,15 @@ size_t strlen(const char *s) {
     return (size_t)(p - s);
 }
 
+void *memcpy(void *dest, const void *src, size_t count) {
+    uint8_t *d = (uint8_t *)dest;
+    const uint8_t *s = (const uint8_t *)src;
+    for (size_t i = 0; i < count; i++) {
+        d[i] = s[i];
+    }
+    return dest;
+}
+
 void serial_putc(char c) {
     while ((inb(COM1 + 5) & 0x20) == 0);
     outb(0x3F8, c);
@@ -69,6 +78,58 @@ const char * info_name_table[] = {
     [21] = "IMAGE LOAD BASE PHYSICAL ADDRESS",
 };
 
+typedef enum {
+    MMAP_FREE = 0,
+    MMAP_RESERVED,
+    MMAP_ACPI_RECLAIMABLE,
+    MMAP_BAD_MEMORY,
+} mtype_t;
+
+const char * mmap_name_table[] = {
+    [0]  = "MMAP_FREE",
+    [1]  = "MMAP_RESERVED",
+    [2]  = "MMAP_ACPI_RECLAIMABLE",
+    [3]  = "MMAP_BAD_MEMORY",
+};
+
+mtype_t convert_memtype(uint64_t type) {
+    switch (type) {
+        case 1:  return MMAP_FREE;
+        case 3:  return MMAP_ACPI_RECLAIMABLE;
+        case 5:  return MMAP_BAD_MEMORY;
+        default: return MMAP_RESERVED;
+    }
+}
+
+struct framebuffer {
+    uint64_t addr;
+    uint32_t pitch;
+    uint32_t width;
+    uint32_t height;
+    uint8_t bpp;
+    uint8_t type;
+    uint8_t reserved;
+};
+
+struct mmap_entry {
+    uint64_t base_addr;
+    uint64_t length;
+    uint32_t type;
+    uint32_t reserved;
+};
+
+struct bootinfo {
+    uintptr_t image_addr;
+    uintptr_t rsdp_addr;
+    struct framebuffer fb;
+
+    uintptr_t loader_name_ptr;
+
+    uintptr_t mmap_addr;
+    uint32_t mmap_count;
+    uint32_t mmap_entry_size;
+};
+
 void boot_main(uint32_t magic, uint32_t *info) {
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) for(;;);
     outb(COM1 + 1, 0x00); // no interrupt mode (polled mode)
@@ -81,15 +142,57 @@ void boot_main(uint32_t magic, uint32_t *info) {
     
     printk("Hello from kisaki\n\n");
 
+    struct bootinfo binfo;
+
     struct multiboot_tag *tag = (struct multiboot_tag *)info;
     printk("Total Tag Size: %d, Reserved (0): %d\n\n", tag->type, tag->size);
     tag++;
     int i = 0;
     while (1) {
         printk("[%02d] [%s] size: %d\n", i, info_name_table[tag->type], tag->size);
+
+        switch (tag->type) {
+            case 2:
+                binfo.loader_name_ptr = (uintptr_t)((uint8_t *)tag + 8);
+            case 6:
+                binfo.mmap_addr = (uintptr_t)((uint8_t *)tag + 16);
+                binfo.mmap_entry_size = *((uint8_t *)tag + 8);
+                binfo.mmap_count = (tag->size - 16) / binfo.mmap_entry_size;
+            case 8:
+                memcpy(&binfo.fb, ((uint8_t *)tag + 8), sizeof(binfo.fb));
+            case 9:
+                ;
+            case 17:
+                binfo.rsdp_addr = (uintptr_t)((uint8_t *)tag + 8);
+        }
+
         if (tag->type == 0 & tag->size == 8) break;
         tag = (struct multiboot_tag *)(((uintptr_t)((uint8_t *)tag + tag->size) + 7) & ~7);
         i++;
+    }
+
+    printk("fb addr: 0x%llx\n", binfo.fb.addr);
+    printk("fb wxh: %dx%d (pitch: %d)\n", binfo.fb.width, binfo.fb.height, binfo.fb.pitch);
+    printk("fb bpp: %d\n", binfo.fb.bpp);
+
+    // for (int i = 0; i < binfo.fb.height; i++) {
+    //     for (int j = 0; j < binfo.fb.width; j++) {
+    //         uint8_t *pixel = fb + i * binfo.fb.pitch + j * 3;
+    //         pixel[0] = 0xCB;
+    //         pixel[1] = 0xC0;
+    //         pixel[2] = 0xFF;
+    //     }
+    // }
+    // not mapped yet
+
+    printk("rsdp addr: 0x%08lx\n", binfo.rsdp_addr);
+    printk("bootloader: %s\n", binfo.loader_name_ptr);
+
+    printk("memory map addr: 0x%08lx, count: %d\n", binfo.mmap_addr, binfo.mmap_count);
+
+    for (int i = 0; i < (int)binfo.mmap_count; i++) {
+        struct mmap_entry* map = (struct mmap_entry *)(binfo.mmap_addr + (i * binfo.mmap_entry_size));
+        printk("[0x%08lx - 0x%08lx]: %s\n", map->base_addr, (map->base_addr + map->length), mmap_name_table[convert_memtype(map->type)]);
     }
 
     for (;;);

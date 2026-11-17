@@ -16,4 +16,4 @@ ALL:
 	cp grub.cfg build/root/boot/grub/grub.cfg
 
 	grub2-mkrescue -o boot.iso build/root
-	qemu-system-x86_64 -bios /usr/share/OVMF/OVMF_CODE.fd -cpu host -accel kvm -cdrom boot.iso -serial stdio -d int
+	qemu-system-x86_64 -bios /usr/share/OVMF/OVMF_CODE.fd -cpu host -accel kvm -cdrom boot.iso -serial stdio -d int -m 128M
