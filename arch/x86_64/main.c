@@ -1,3 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * kisaki x86_64 Boot Entry
+ *
+ * Copyright (c) 2026 Ren-deRing
+ *
+ * Uses multiboot2:
+ * Copyright (C) 1999,2003,2007,2008,2009,2010  Free Software Foundation, Inc.
+ *
+ */
+
 #include "io.h"
 #include "multiboot2.h"
 
@@ -17,15 +28,6 @@ struct multiboot_tag {
     uint32_t size;
 };
 
-mtype_t convert_memtype(uint64_t type) {
-    switch (type) {
-        case 1:  return MMAP_FREE;
-        case 3:  return MMAP_ACPI_RECLAIMABLE;
-        case 5:  return MMAP_BAD_MEMORY;
-        default: return MMAP_RESERVED;
-    }
-}
-
 void boot_main(uint32_t magic, uint32_t *info) {
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) for(;;);
     outb(COM1 + 1, 0x00); // no interrupt mode (polled mode)
@@ -39,8 +41,6 @@ void boot_main(uint32_t magic, uint32_t *info) {
     set_putc_sink(serial_putc);
 
     printk("Hello from kisaki\n\n");
-
-    struct bootinfo binfo;
 
     struct multiboot_tag *tag = (struct multiboot_tag *)info;
     tag++;
@@ -82,11 +82,6 @@ void boot_main(uint32_t magic, uint32_t *info) {
     // printk("bootloader: %s\n", binfo.loader_name_ptr);
 
     // printk("memory map addr: 0x%08lx, count: %d\n", binfo.mmap_addr, binfo.mmap_count);
-
-    // for (int i = 0; i < (int)binfo.mmap_count; i++) {
-    //     struct mmap_entry* map = (struct mmap_entry *)(binfo.mmap_addr + (i * binfo.mmap_entry_size));
-    //     printk("[0x%016lx - 0x%016lx]: %s\n", map->base_addr, (map->base_addr + map->length), mmap_name_table[convert_memtype(map->type)]);
-    // }
 
     extern void init_kernel();
     init_kernel();

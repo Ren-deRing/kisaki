@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# kisaki x86_64 multiboot2 i386 Boot Entry
+#
+# Copyright (c) 2026 Ren-deRing
+
 #define ASM_FILE 1
 #include "multiboot2.h"
 
@@ -31,7 +37,6 @@ multiboot_header_end:
 .equ CR4_PAE_ENABLE, 1 << 5
 .equ EFER_MSR, 0xC0000080
 .equ EFER_LM_ENABLE, 1 << 8
-.equ CR0_PM_ENABLE, 1 << 0
 .equ CR0_PG_ENABLE, 1 << 31
 
 .globl _start

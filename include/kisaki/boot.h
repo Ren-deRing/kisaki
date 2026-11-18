@@ -37,3 +37,5 @@ struct bootinfo {
     uint32_t mmap_count;
     uint32_t mmap_entry_size;
 };
+
+extern struct bootinfo binfo;

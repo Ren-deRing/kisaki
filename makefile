@@ -17,6 +17,11 @@ all:
 
 	clang $(CFLAGS) -c kernel/misc/printk.c -o build/kernel/misc/printk.o
 	clang $(CFLAGS) -c kernel/misc/string.c -o build/kernel/misc/string.o
+	clang $(CFLAGS) -c kernel/misc/panic.c  -o build/kernel/misc/panic.o
+
+	mkdir -p build/mm
+
+	clang $(CFLAGS) -c mm/arealloc.c -o build/mm/arealloc.o
 
 	mkdir -p build/init
 
@@ -24,8 +29,9 @@ all:
 
 	ld.lld -T linker.ld -o build/kernel.elf --oformat=elf64-x86_64 \
 		build/arch/start.o build/arch/main.o build/arch/arch.o \
-		build/kernel/misc/printk.o build/kernel/misc/string.o \
-		build/init/main.o -no-pie
+		build/kernel/misc/printk.o build/kernel/misc/string.o build/kernel/misc/panic.o \
+		build/init/main.o \
+		build/mm/arealloc.o -no-pie
 
 	mkdir -p build/root/boot
 	mkdir -p build/root/boot/grub
@@ -36,7 +42,7 @@ all:
 	grub2-mkrescue -o boot.iso build/root
 
 run: all
-	qemu-system-x86_64 -bios /usr/share/OVMF/OVMF_CODE.fd -cpu host -accel kvm -cdrom boot.iso -serial stdio -d int -m 128M
+	qemu-system-x86_64 -bios /usr/share/OVMF/OVMF_CODE.fd -cpu host -accel kvm -cdrom boot.iso -serial stdio -d int -m 8G
 
 clean:
 	rm -rf build
