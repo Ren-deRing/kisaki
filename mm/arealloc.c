@@ -42,39 +42,32 @@ void arealloc_init() {
 }
 
 static void *alloc(size_t size, size_t align, uintptr_t limit) { // TODO: see where kernel image loaded first.
-    if (size > SIZE_MAX - align) return NULL;
-    if (align > 16) return NULL;
     if (!((align & (align - 1)) == 0)) return NULL;
 
+    if (!align) align = 1;
     if (!limit) limit = UINTPTR_MAX;
-    size += align;
 
     for (size_t i = 0; i < region_count; i++) {
-        if (regions[i].size >= size) {
-            if (size > UINTPTR_MAX - regions[i].address) return NULL;
-            if (regions[i].address + size > limit) return NULL;
+        uintptr_t start = regions[i].address;
+        if (start > UINTPTR_MAX - (align - 1)) return NULL;
+        uintptr_t aligned = (start + align - 1) & ~(uintptr_t)(align - 1);
+        size_t pad = aligned - start;
 
-            uintptr_t addr = (uintptr_t)regions[i].address;
+        if (regions[i].size < pad || regions[i].size - pad < size) continue;
+        if (size > limit || aligned > limit - size) return NULL;
 
-            if ((regions[i].size - size) == 0) {
-                region_count--;
-                for (size_t j = i; j < region_count; j++) {
-                    regions[j].address = regions[j+1].address;
-                    regions[j].size = regions[j+1].size;
-                }
-            } else {
-                regions[i].address += size;
-                regions[i].size -= size;
+        size_t used = size + pad;
+        if ((regions[i].size - used) == 0) {
+            region_count--;
+            for (size_t j = i; j < region_count; j++) {
+                regions[j].address = regions[j+1].address;
+                regions[j].size = regions[j+1].size;
             }
-
-            for (size_t i = 0; i < region_count; i++) {
-                printk("[%d] %016lx\n", i, regions[i].address);
-            }
-
-            if (align != 0)
-                return (void *)((addr + align - 1) & ~(align - 1));
-            return (void *)addr;
+        } else {
+            regions[i].address += used;
+            regions[i].size -= used;
         }
+        return (void *)aligned;
     }
     return NULL;
 }
