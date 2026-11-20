@@ -3,6 +3,8 @@ SECTIONS
 {
     . = 1M;
 
+    kernel_start = .;
+
     .text :
     {
         *(.multiboot)
@@ -23,4 +25,11 @@ SECTIONS
     {
         *(.bss)
     }
+
+    /DISCARD/ : {
+        *(.eh_frame*)
+        *(.note .note.*)
+    }
+
+    kernel_end = .;
 }

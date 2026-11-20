@@ -13,6 +13,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+extern char kernel_start[];
+extern char kernel_end[];
+
 static struct arealloc_region regions[AREALLOC_MAX_REGIONS];
 static size_t region_count;
 
@@ -26,22 +29,55 @@ static mtype_t convert_memtype(uint64_t type) {
 }
 
 void arealloc_init() {
+    uintptr_t start = (uintptr_t)kernel_start;
+    uintptr_t end = (uintptr_t)kernel_end;
+
     int count = 0;
     for (int i = 0; i < (int)binfo.mmap_count; i++) {
         struct mmap_entry* map = (struct mmap_entry *)(binfo.mmap_addr + (i * binfo.mmap_entry_size));
         if (convert_memtype(map->type) == MMAP_FREE) {
-            if (map->base_addr < AREALLOC_MIN_ADDR) continue;
+            uintptr_t base = map->base_addr;
+            uintptr_t length = map->length;
+
+            if (base < AREALLOC_MIN_ADDR) continue;
             if (count >= AREALLOC_MAX_REGIONS)
                 panic("arealloc: too many regions (max: %d)", AREALLOC_MAX_REGIONS);
-            regions[count].address = map->base_addr;
-            regions[count].size = map->length;
+
+            if (base <= start) {
+                if (base + length >= end) {
+                    // | base = kernel | | base + len |
+                    if (base == start) {
+                        base = end;
+                    // | base | | kernel = base + len |
+                    } else if (base + end == end) {
+                        length = start - base;
+                    // | base | | kernel | | base + len |
+                    } else {
+                        count++;
+                        if (count >= AREALLOC_MAX_REGIONS)
+                            panic("arealloc: too many regions (max: %d)", AREALLOC_MAX_REGIONS);
+                        regions[count].address = end;
+                        regions[count].size = (base + length) - end;
+                        length = start - base;
+                        printk("base < kernel < end\n");
+                    }
+                }
+            }
+            regions[count].address = base;
+            regions[count].size = length;
             count++;
         }
     }
     region_count = count;
+
+    // for (int i = 0; i < count; i++) {
+    //     printk("[%d] 0x%016lx - 0x%016lx\n", i, regions[i].address, regions[i].address + regions[i].size);
+    // }
+
+    // printk("kernel start: 0x%08lx, end: 0x%08lx\n", kernel_start, kernel_end);
 }
 
-static void *alloc(size_t size, size_t align, uintptr_t limit) { // TODO: see where kernel image loaded first.
+static void *alloc(size_t size, size_t align, uintptr_t limit) {
     if (!((align & (align - 1)) == 0)) return NULL;
 
     if (!align) align = 1;
