@@ -29,6 +29,7 @@ multiboot_header_end:
 .equ PT_ADDR_MASK, 0xfffff000
 .equ PT_PRESENT, 1
 .equ PT_WRITABLE, 2
+.equ PDE_HUGE, 1 << 7
 
 .equ ENTRIES_PER_PT, 512
 .equ SIZEOF_PT_ENTRY, 8
@@ -64,29 +65,17 @@ _start:
     mov $boot_pdpt, %eax
     andl $PT_ADDR_MASK, %eax
     orl $(PT_PRESENT | PT_WRITABLE), %eax
-    movl %eax, (%edi) # write PML4T (PDPT's phys addr, flags)
+    movl %eax, (%edi) # write PML4E (PDPT's phys addr, flags)
 
     mov $boot_pdpt, %edi
     mov $boot_pdt, %eax
     andl $PT_ADDR_MASK, %eax
     orl $(PT_PRESENT | PT_WRITABLE), %eax
-    movl %eax, (%edi) # write PDPT  (same but PDT's phys addr)
+    movl %eax, (%edi) # write PDPE  (same but PDT's phys addr)
 
     mov $boot_pdt, %edi
-    mov $boot_pt, %eax
-    andl $PT_ADDR_MASK, %eax
-    orl $(PT_PRESENT | PT_WRITABLE), %eax
-    movl %eax, (%edi) # write PDT   (too)
-
-    mov $boot_pt, %edi                    # page table's addr (start addr: PT_ADDR)
-    mov $(PT_PRESENT | PT_WRITABLE), %ebx # page table content (0x00000003)
-    mov $ENTRIES_PER_PT, %ecx             # full page table (2MiB)
-
-entry_set:
-    movl %ebx, (%edi)          # write entry
-    add $PAGE_SIZE, %ebx       # next phys addr (0x00000003 + 0x1000 = 0x00001003)
-    add $SIZEOF_PT_ENTRY, %edi # move to next page table entry
-    loop entry_set             # loop, ecx--
+    mov $(PT_PRESENT | PT_WRITABLE | PDE_HUGE), %eax # HUGE PAGE (2MB)
+    movl %eax, (%edi) # write PDE   (too)
 
 long_setup:
     mov %cr4, %eax            # read cr4
@@ -158,7 +147,6 @@ info:  .long 0
 boot_pml4: .zero 4096
 boot_pdpt: .zero 4096
 boot_pdt:  .zero 4096
-boot_pt:   .zero 4096
 
 .zero 8196
 stack:

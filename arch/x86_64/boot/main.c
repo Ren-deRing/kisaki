@@ -9,12 +9,13 @@
  *
  */
 
-#include "io.h"
 #include "multiboot2.h"
 
 #include <kisaki/boot.h>
 #include <kisaki/string.h>
 #include <kisaki/printk.h>
+
+#include <asm/io.h>
 
 #define COM1 0x3F8
 

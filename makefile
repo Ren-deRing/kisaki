@@ -6,11 +6,16 @@ CFLAGS = -g -O2 -ffreestanding -fno-stack-protector -fno-PIC -fno-PIE -ffunction
 	-Iarch/$(ARCH)
 
 all:
-	mkdir -p build/arch
+	mkdir -p build/
+	mkdir -p build/arch/$(ARCH)
+	mkdir -p build/arch/$(ARCH)/kernel
+	mkdir -p build/arch/$(ARCH)/boot
 
-	clang $(CFLAGS) -fno-integrated-as -c arch/x86_64/start.S -o build/arch/start.o
-	clang $(CFLAGS) -c arch/x86_64/main.c -o build/arch/main.o
-	clang $(CFLAGS) -c arch/x86_64/arch.c -o build/arch/arch.o
+	clang $(CFLAGS) -fno-integrated-as -c arch/x86_64/boot/start.S -o build/arch/x86_64/boot/start.o
+	clang $(CFLAGS) -c arch/x86_64/boot/main.c -o build/arch/x86_64/boot/main.o
+
+	clang $(CFLAGS) -c arch/x86_64/kernel/arch.c -o build/arch/x86_64/kernel/arch.o
+	clang $(CFLAGS) -c arch/x86_64/kernel/initvm.c -o build/arch/x86_64/kernel/initvm.o
 
 	mkdir -p build/kernel
 	mkdir -p build/kernel/misc
@@ -28,7 +33,8 @@ all:
 	clang $(CFLAGS) -c init/main.c -o build/init/main.o
 
 	ld.lld -T linker.ld -o build/kernel.elf --oformat=elf64-x86_64 \
-		build/arch/start.o build/arch/main.o build/arch/arch.o \
+		build/arch/x86_64/boot/start.o build/arch/x86_64/boot/main.o \
+		build/arch/x86_64/kernel/arch.o build/arch/x86_64/kernel/initvm.o \
 		build/kernel/misc/printk.o build/kernel/misc/string.o build/kernel/misc/panic.o \
 		build/init/main.o \
 		build/mm/arealloc.o -no-pie
