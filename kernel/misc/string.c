@@ -18,3 +18,11 @@ void *memcpy(void *dest, const void *src, size_t count) {
     }
     return dest;
 }
+
+void *memset(void *dest, int ch, size_t count) {
+    uint8_t *p = (uint8_t *)dest;
+    for (size_t i = 0; i < count; i++) {
+        p[i] = (uint8_t)ch;
+    }
+    return dest;
+}

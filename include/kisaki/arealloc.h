@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #pragma once
 
 #include <stddef.h>
@@ -14,3 +15,4 @@ struct arealloc_region {
 void arealloc_init();
 void *arealloc_alloc(size_t size, size_t align);
 void *arealloc_alloc_below(size_t size, size_t align, uintptr_t limit);
+uintptr_t arealloc_max_addr();

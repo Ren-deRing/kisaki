@@ -7,19 +7,18 @@
  */
 
 #include <asm/arch.h>
+#include <asm/initvm.h>
 
 #include <kisaki/boot.h>
 #include <kisaki/printk.h>
 #include <kisaki/arealloc.h>
-
 struct bootinfo binfo;
 
 void init_kernel() {
     printk("kisaki generic init entry!\n");
 
     arealloc_init();
-    void* alloc1 = arealloc_alloc_below(4 * 1024, 0, 2 * 1024 * 1024);
-    printk("allocated: 0x%lx\n", (uintptr_t)alloc1);
+    initvm_expand_table(arealloc_max_addr());
 
     for(;;) arch_halt();
 }

@@ -18,6 +18,7 @@ extern char kernel_end[];
 
 static struct arealloc_region regions[AREALLOC_MAX_REGIONS];
 static size_t region_count;
+static uintptr_t memory_max_addr;
 
 static mtype_t convert_memtype(uint64_t type) {
     switch (type) {
@@ -65,6 +66,7 @@ void arealloc_init() {
             }
             regions[count].address = base;
             regions[count].size = length;
+            memory_max_addr = base + length;
             count++;
         }
     }
@@ -114,4 +116,8 @@ void *arealloc_alloc(size_t size, size_t align) {
 
 void *arealloc_alloc_below(size_t size, size_t align, uintptr_t limit) {
     return alloc(size, align, limit);
+}
+
+uintptr_t arealloc_max_addr() {
+    return memory_max_addr;
 }
